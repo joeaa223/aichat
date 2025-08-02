@@ -73,10 +73,15 @@ export default {
   setup(props, { emit }) {
     const characters = ref([])
     
+    // API基础URL配置
+    const API_BASE_URL = import.meta.env.PROD 
+      ? window.location.origin 
+      : 'http://localhost:3001'
+    
     // 加载角色列表
     const loadCharacters = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/characters')
+        const response = await fetch(`${API_BASE_URL}/api/characters`)
         
         // 检查响应状态
         if (!response.ok) {

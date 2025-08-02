@@ -12,7 +12,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 // CORS配置 - 支持Vercel部署
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://vue-kuro.vercel.app', 'https://your-custom-domain.com']
+    ? ['https://karachat-npgw668pv-kai-heng-s-projects.vercel.app', 'https://karachat.vercel.app', 'https://your-custom-domain.com']
     : 'http://localhost:5173',
   credentials: true
 }))

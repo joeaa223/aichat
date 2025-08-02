@@ -59,6 +59,10 @@ export default {
     const dragOffset = ref({ x: 0, y: 0 })
     const floatingAvatar = ref(null)
     
+    // 浮动聊天泡泡相关状态
+    const showFloatingChatBubble = ref(false)
+    const floatingChatMessage = ref('')
+    
     // 角色相关状态
     const characters = ref([])
     const currentCharacter = ref('kuro')
@@ -356,14 +360,24 @@ export default {
       scrollToBottom()
     }
     
+    // 拖拽消息防抖
+    const dragMessageShown = ref(false)
+    
+    // 拖拽起始位置
+    const dragStartPosition = ref({ x: 0, y: 0 })
+    
     // 开始拖拽
     const startDrag = (event) => {
       event.preventDefault()
       isDragging.value = true
+      dragMessageShown.value = false
       
-      const rect = floatingAvatar.value.getBoundingClientRect()
+      // 记录拖拽起始位置
       const clientX = event.clientX || (event.touches && event.touches[0].clientX)
       const clientY = event.clientY || (event.touches && event.touches[0].clientY)
+      dragStartPosition.value = { x: clientX, y: clientY }
+      
+      const rect = floatingAvatar.value.getBoundingClientRect()
       
       dragOffset.value = {
         x: clientX - rect.left,
@@ -373,6 +387,36 @@ export default {
       // 添加拖拽时的样式
       if (floatingAvatar.value) {
         floatingAvatar.value.style.cursor = 'grabbing'
+      }
+      
+      // 显示拖拽对话（只在开始拖拽时显示一次）
+      if (!dragMessageShown.value) {
+        // 延迟显示拖拽消息，确保是真正的拖拽
+        setTimeout(() => {
+          if (isDragging.value) {
+            const dragMessages = [
+              '别再拉我了！',
+              '哎呀，轻点！',
+              '我要生气了！',
+              '别拽我！',
+              '我要掉下去了！',
+              '快放开我！',
+              '好疼啊！',
+              '我要咬你了！'
+            ]
+            const randomMessage = dragMessages[Math.floor(Math.random() * dragMessages.length)]
+            
+            // 显示浮动聊天泡泡
+            floatingChatMessage.value = randomMessage
+            showFloatingChatBubble.value = true
+            dragMessageShown.value = true
+            
+            // 3秒后隐藏聊天泡泡
+            setTimeout(() => {
+              showFloatingChatBubble.value = false
+            }, 5000)
+          }
+        }, 100) // 延迟100ms，确保是真正的拖拽
       }
       
       // 添加事件监听器
@@ -405,7 +449,22 @@ export default {
     
     // 停止拖拽
     const stopDrag = () => {
+      // 计算拖拽距离
+      const currentPosition = {
+        x: event.clientX || (event.touches && event.touches[0].clientX),
+        y: event.clientY || (event.touches && event.touches[0].clientY)
+      }
+      
+      const dragDistance = Math.sqrt(
+        Math.pow(currentPosition.x - dragStartPosition.value.x, 2) +
+        Math.pow(currentPosition.y - dragStartPosition.value.y, 2)
+      )
+      
+      // 如果拖拽距离大于10px，则认为是拖拽而不是点击
+      const isActuallyDragging = dragDistance > 10
+      
       isDragging.value = false
+      dragMessageShown.value = false // 重置防抖状态
       
       // 恢复样式
       if (floatingAvatar.value) {
@@ -414,6 +473,30 @@ export default {
       
       // 保存位置到本地存储
       localStorage.setItem('floating-avatar-position', JSON.stringify(floatingAvatarPosition.value))
+      
+      // 只有在真正拖拽时才显示拖拽结束消息
+      if (isActuallyDragging) {
+        setTimeout(() => {
+          const endDragMessages = [
+            '终于得救了！',
+            '呼...累死我了',
+            '下次轻点好吗？',
+            '谢谢放过我！',
+            '我要休息一下...',
+            '好险啊！'
+          ]
+          const randomEndMessage = endDragMessages[Math.floor(Math.random() * endDragMessages.length)]
+          
+          // 显示浮动聊天泡泡
+          floatingChatMessage.value = randomEndMessage
+          showFloatingChatBubble.value = true
+          
+          // 3秒后隐藏聊天泡泡
+          setTimeout(() => {
+            showFloatingChatBubble.value = false
+          }, 3000)
+        }, 500) // 延迟500ms显示
+      }
       
       // 移除事件监听器
       document.removeEventListener('mousemove', onDrag)
@@ -431,6 +514,20 @@ export default {
     // 浮动头像点击事件（只有在非拖拽状态下才触发）
     const handleFloatingAvatarClick = (event) => {
       if (isDragging.value) return
+      
+      // 计算拖拽距离
+      const currentPosition = {
+        x: event.clientX || (event.touches && event.touches[0].clientX),
+        y: event.clientY || (event.touches && event.touches[0].clientY)
+      }
+      
+      const dragDistance = Math.sqrt(
+        Math.pow(currentPosition.x - dragStartPosition.value.x, 2) +
+        Math.pow(currentPosition.y - dragStartPosition.value.y, 2)
+      )
+      
+      // 如果拖拽距离大于10px，则认为是拖拽而不是点击
+      if (dragDistance > 10) return
       
       console.log('浮动头像被点击了！') // 调试信息
       
@@ -589,7 +686,9 @@ export default {
       handleAvatarClick,
       scrollToTop,
       switchCharacter,
-      clearMessages
+      clearMessages,
+      showFloatingChatBubble,
+      floatingChatMessage
     }
   }
 }
@@ -640,18 +739,30 @@ export default {
         @click="handleFloatingAvatarClick"
         ref="floatingAvatar"
       >
-      <div class="floating-avatar-container">
-        <img 
-          :src="emotionImage" 
-          alt="猫影" 
-          class="floating-avatar-img"
-          style="cursor: grab;"
-          title="拖拽移动我，点击回到顶部"
+        <div class="floating-avatar-container">
+          <img 
+            :src="emotionImage" 
+            alt="猫影" 
+            class="floating-avatar-img"
+            style="cursor: grab;"
+            title="拖拽移动我，点击回到顶部"
+          >
+          <div class="floating-avatar-glow"></div>
+          <div class="floating-avatar-pulse"></div>
+        </div>
+        
+        <!-- 浮动小聊天泡泡 -->
+        <div 
+          v-if="showFloatingChatBubble && floatingChatMessage"
+          class="floating-chat-bubble"
+          :class="{ show: showFloatingChatBubble }"
         >
-        <div class="floating-avatar-glow"></div>
-        <div class="floating-avatar-pulse"></div>
+          <div class="floating-chat-content">
+            {{ floatingChatMessage }}
+          </div>
+          <div class="floating-chat-tail"></div>
+        </div>
       </div>
-    </div>
     
     <!-- 回到顶部按钮 -->
     <div class="back-to-top" :class="{ show: showBackToTop }">
@@ -735,7 +846,10 @@ export default {
               :class="['message', message.sender]"
             >
               <div class="message-bubble">
-                <div class="message-content">{{ message.content }}</div>
+                <div 
+                  class="message-content"
+                  :class="{ 'drag-message': message.isDragMessage }"
+                >{{ message.content }}</div>
                 <div class="message-time">{{ message.time }}</div>
               </div>
             </div>
@@ -1178,8 +1292,8 @@ body {
     0 0 0 1px rgba(255, 255, 255, 0.1);
   margin-bottom: 20px;
   min-height: 400px;
-  max-height: 70vh;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -1187,23 +1301,7 @@ body {
   height: auto;
 }
 
-.chat-messages::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
+/* 移除滚动条样式，因为现在使用页面滚动 */
 
 .message {
   animation: fadeInUp 0.4s ease;
@@ -1275,6 +1373,27 @@ body {
   border-bottom-color: rgba(255, 255, 255, 0.1);
   border-left: none;
   border-bottom-left-radius: 4px;
+}
+
+/* 拖拽消息特殊样式 */
+.message.cat .message-content.drag-message {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+  border: 2px solid #ff4757;
+  animation: dragMessagePulse 0.6s ease-in-out;
+  box-shadow: 
+    0 4px 15px rgba(255, 107, 107, 0.4),
+    0 0 0 1px rgba(255, 71, 87, 0.3);
+}
+
+.message.cat .message-content.drag-message::before {
+  border-bottom-color: #ff4757;
+}
+
+@keyframes dragMessagePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 .message-time {
@@ -1453,8 +1572,8 @@ body {
 
 .floating-avatar-container {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
 }
 
 .floating-avatar-img {
@@ -1502,6 +1621,62 @@ body {
   border-radius: 50%;
   animation: pulse 2s ease-in-out infinite;
   z-index: 0;
+}
+
+/* 浮动聊天泡泡 */
+.floating-chat-bubble {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 
+    0 4px 15px rgba(255, 107, 107, 0.4),
+    0 0 0 1px rgba(255, 71, 87, 0.3);
+  z-index: 1002;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  animation: floatingChatBubbleIn 0.3s ease forwards;
+}
+
+.floating-chat-bubble.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.floating-chat-content {
+  position: relative;
+  z-index: 2;
+}
+
+.floating-chat-tail {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  border-top-color: #ee5a24;
+  border-bottom: none;
+}
+
+@keyframes floatingChatBubbleIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
 }
 
 /* 回到顶部按钮 */
@@ -1725,14 +1900,18 @@ body {
   
   .chat-section {
     gap: 18px;
+    overflow: visible;
+    height: auto;
   }
   
   .chat-messages {
     padding: 18px;
     min-height: 250px;
-    max-height: 55vh;
+    max-height: none;
     border-radius: 18px;
     gap: 15px;
+    overflow: visible;
+    height: auto;
   }
   
   .message-bubble {
@@ -1847,6 +2026,9 @@ body {
     padding: 20px 10px;
     border-radius: 18px;
     min-height: auto;
+    /* 确保容器可以自由扩展 */
+    overflow: visible;
+    position: relative;
   }
   
 
@@ -1906,6 +2088,10 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* 确保聊天区域可以自由扩展 */
+    overflow: visible;
+    height: auto;
+    min-height: auto;
   }
   
   .chat-messages {
@@ -1921,9 +2107,13 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    /* 隐藏滚动条 */
+    /* 完全移除滚动条 */
     scrollbar-width: none;
     -ms-overflow-style: none;
+    /* 确保内容可以自由扩展 */
+    position: relative;
+    overflow-y: visible;
+    overflow-x: visible;
   }
   
   .chat-messages::-webkit-scrollbar {
@@ -1992,6 +2182,19 @@ body {
   
   .floating-avatar-img {
     border-width: 2px;
+  }
+  
+  /* 手机模式浮动聊天泡泡 */
+  .floating-chat-bubble {
+    top: -70px;
+    padding: 6px 10px;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+  
+  .floating-chat-tail {
+    bottom: -5px;
+    border-width: 5px;
   }
   
   .back-to-top {
