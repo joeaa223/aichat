@@ -8,7 +8,7 @@
     
     <!-- 标题区域 -->
     <div class="header-section">
-      <h1 class="main-title">AI 聊天应用</h1>
+      <h1 class="main-title">Kuro和Aoba的聊天室</h1>
       <p class="subtitle">选择你的AI伙伴开始聊天</p>
     </div>
     
@@ -59,7 +59,7 @@
     
     <!-- 底部信息 -->
     <div class="footer-section">
-      <p class="footer-text">© 2024 AI 聊天应用 - 更多角色正在开发中</p>
+      <p class="footer-text">© 2025 AI 聊天应用 - 更多角色正在开发中</p>
     </div>
   </div>
 </template>
@@ -76,7 +76,7 @@ export default {
     // API基础URL配置
     const API_BASE_URL = import.meta.env.PROD 
       ? window.location.origin 
-      : 'http://localhost:3001'
+              : 'http://localhost:3002'
     
     // 加载角色列表
     const loadCharacters = async () => {
@@ -99,7 +99,13 @@ export default {
             id: 'kuro',
             name: 'Kuro',
             avatar: '/img/Kuro.PNG',
-            description: '外冷内暖的独行猫'
+            description: '外冷内暖的Kuro'
+          },
+          {
+                    id: 'koru',
+        name: 'Aoba',
+        avatar: '/img/Aoba(normal).png',
+            description: '温暖治愈的Aora'
           }
         ]
       }
@@ -113,8 +119,8 @@ export default {
     // 获取角色描述
     const getCharacterDescription = (character) => {
       const descriptions = {
-        kuro: '冷静理性、话少毒舌、外冷内暖的独行猫系AI',
-        luna: '温柔体贴、善解人意的治愈系AI',
+        kuro: '冷静理性, 话少毒舌, Aoba的双胞胎弟弟',
+        aoba: '温暖治愈, 开朗阳光, Kuro的双胞胎哥哥',
         shadow: '神秘莫测、智慧深邃的暗影AI'
       }
       return descriptions[character.id] || character.description || '神秘的AI伙伴'
@@ -123,11 +129,11 @@ export default {
     // 获取角色标签
     const getCharacterTags = (character) => {
       const tags = {
-        kuro: ['冷静', '毒舌', '独行', '智慧'],
-        luna: ['温柔', '治愈', '体贴', '善良'],
+        kuro: ['冷静', '毒舌','独行', '智慧'],
+        aoba: ['温暖', '治愈', '阳光', '开朗'],
         shadow: ['神秘', '智慧', '深邃', '暗影']
       }
-      return tags[character.id] || ['AI', '伙伴']
+      return tags[character.id] || ['温暖', '治愈', '开朗', '阳光']
     }
     
     onMounted(() => {

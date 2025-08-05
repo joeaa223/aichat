@@ -1,3 +1,5 @@
+// vue-kuro/server/server.js 修复版本
+
 const express = require('express')
 const cors = require('cors')
 const axios = require('axios')
@@ -35,7 +37,7 @@ app.get('/api/characters', (req, res) => {
 function getCharacterDescription(characterId) {
   const descriptions = {
     kuro: '冷静理性、话少毒舌、外冷内暖的独行猫系AI',
-    luna: '温柔体贴、善解人意的治愈系AI'
+    aoba: '温暖治愈、开朗阳光的治愈系AI，Kuro的双胞胎弟弟'
   }
   return descriptions[characterId] || '神秘的AI伙伴'
 }
@@ -74,6 +76,8 @@ app.post('/api/chat', async (req, res) => {
   try {
     const { message, conversationHistory, characterId = 'kuro' } = req.body
     
+    console.log('收到聊天请求，角色ID:', characterId)
+    
     if (!message) {
       return res.status(400).json({
         error: '消息不能为空'
@@ -87,6 +91,8 @@ app.post('/api/chat', async (req, res) => {
         error: '角色不存在'
       })
     }
+    
+    console.log('使用角色:', character.name, '角色ID:', characterId)
 
     // 构建对话历史
     const messages = [
@@ -102,8 +108,14 @@ app.post('/api/chat', async (req, res) => {
 
     // 添加历史对话
     if (conversationHistory && conversationHistory.length > 0) {
-      // 只保留最近的10条对话以避免token超限
-      const recentHistory = conversationHistory.slice(-10)
+      // 保留最近的20条对话以提高上下文理解能力
+      const recentHistory = conversationHistory.slice(-20)
+      
+      // 添加对话上下文提示
+      messages.push({
+        role: 'user',
+        parts: [{ text: '请基于以下对话历史继续我们的对话，保持角色一致性和对话的连贯性：' }]
+      })
       
       for (const msg of recentHistory) {
         if (msg.sender === 'user') {
@@ -132,10 +144,10 @@ app.post('/api/chat', async (req, res) => {
       {
         contents: messages,
         generationConfig: {
-          temperature: 0.8,
+          temperature: 0.7,  // 降低温度，提高一致性
           topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 150
+          topP: 0.9,  // 稍微降低，提高稳定性
+          maxOutputTokens: 300  // 增加输出长度
         }
       },
       {
@@ -174,15 +186,27 @@ app.get('/health', (req, res) => {
 
 // 只在开发环境启动服务器
 if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3001
-  app.listen(PORT, () => {
+  const PORT = process.env.PORT || 3002
+  
+  const server = app.listen(PORT, () => {
     console.log(`🚀 Node.js 服务器运行在端口 ${PORT}`)
     console.log(`📡 健康检查: http://localhost:${PORT}/health`)
     console.log(`🔗 测试接口: http://localhost:${PORT}/api/test`)
     console.log(`💬 聊天接口: http://localhost:${PORT}/api/chat`)
     console.log(`👥 角色接口: http://localhost:${PORT}/api/characters`)
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`❌ 端口 ${PORT} 已被占用，请尝试以下解决方案：`)
+      console.error(`   1. 关闭占用端口的进程`)
+      console.error(`   2. 修改端口号（当前配置为 ${PORT}）`)
+      console.error(`   3. 等待几分钟后重试`)
+      process.exit(1)
+    } else {
+      console.error('❌ 服务器启动失败:', err.message)
+      process.exit(1)
+    }
   })
 }
 
 // 导出app实例供Vercel使用
-module.exports = app 
+module.exports = app

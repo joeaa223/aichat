@@ -12,7 +12,7 @@ if not exist node_modules (
 
 echo.
 echo 🚀 启动后端服务器...
-echo 📡 服务器地址: http://localhost:3001
+echo 📡 服务器地址: http://localhost:3002
 echo.
 
 npm run dev

@@ -1,23 +1,50 @@
 <script>
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import CharacterSelect from './components/CharacterSelect.vue'
+import AobaChat from './components/AobaChat.vue'
+import { timeSystem } from './utils/timeSystem.js'
 
 export default {
   name: 'App',
   components: {
-    CharacterSelect
+    CharacterSelect,
+    AobaChat
   },
   setup() {
     // 页面状态 - 默认为角色选择页面
     const selectedCharacter = ref(null)
+    const currentPage = ref('select') // 'select', 'kuro', 'aoba'
     
     // 开始聊天
     const startChat = async (characterId) => {
       selectedCharacter.value = characterId
       currentCharacter.value = characterId
       
+      if (characterId === 'aoba') {
+        // Aoba 使用独立页面
+        currentPage.value = 'aoba'
+        return
+      }
+      
+      // Kuro 使用原有页面
+      currentPage.value = 'kuro'
+      
       // 加载角色数据
       await loadCharacterData(characterId)
+      
+      // 确保当前角色ID正确设置
+      currentCharacter.value = characterId
+      
+      // 添加时间问候消息
+      const timeGreeting = getTimeGreeting()
+      messages.value = [
+        {
+          id: Date.now(),
+          content: timeGreeting,
+          sender: 'cat',
+          time: currentTime.value
+        }
+      ]
       
       // 加载聊天记录
       loadMessages()
@@ -31,6 +58,7 @@ export default {
     // 返回角色选择（首页）
     const backToCharacterSelect = () => {
       selectedCharacter.value = null
+      currentPage.value = 'select'
       // 清除当前聊天记录
       messages.value = []
       localStorage.removeItem('kuro-chat-messages')
@@ -69,21 +97,15 @@ export default {
     const characterData = ref(null)
     const showCharacterSelector = ref(false)
     
-    // 表情图片映射
-    const emotionImages = ref({
-      'normal': '/img/Kuro.PNG',
-      'happy': '/img/Kuro(Happy).PNG',
-      'angry': '/img/Kuro(Angry).PNG',
-      'sad': '/img/Kuro(Sad).PNG',
-      'surprise': '/img/Kuro(Surprise).PNG'
-    })
+    // 表情图片映射 - 将在 loadCharacterData 中动态设置
+    const emotionImages = ref({})
     
     const emotionImage = ref(emotionImages.value.normal)
     
     // API基础URL配置
     const API_BASE_URL = import.meta.env.PROD 
       ? window.location.origin 
-      : 'http://localhost:3001'
+              : 'http://localhost:3002'
     
     // 加载角色列表
     const loadCharacters = async () => {
@@ -106,6 +128,11 @@ export default {
             id: 'kuro',
             name: 'Kuro',
             avatar: '/img/Kuro.PNG'
+          },
+          {
+            id: 'koru',
+            name: 'Aoba',
+            avatar: '/img/Aoba(normal).png'
           }
         ]
       }
@@ -129,25 +156,48 @@ export default {
         console.log('角色详情加载成功:', data)
       } catch (error) {
         console.warn('后端服务器未启动，使用默认角色数据:', error.message)
-        // 使用默认角色数据
-        characterData.value = {
-          name: 'Kuro',
-          avatar: '/img/Kuro.PNG',
-          emotions: {
-            normal: '/img/Kuro.PNG',
-            happy: '/img/Kuro(Happy).PNG',
-            angry: '/img/Kuro(Angry).PNG',
-            sad: '/img/Kuro(Sad).PNG',
-            surprise: '/img/Kuro(Surprise).PNG'
-          },
-          statusTexts: {
-            normal: ['正在思考人生的意义...', '观察着愚蠢的人类...'],
-            happy: ['开心地摇着尾巴...', '心情不错的样子...'],
-            angry: ['炸毛中，别惹我...', '耳朵向后贴着...'],
-            sad: ['心情有点低落...', '耳朵垂了下来...'],
-            surprise: ['惊讶地睁大眼睛...', '耳朵竖得很直...']
-          },
-          clickResponses: ['别戳我...', '哼，幼稚。', '有事说事。', '你很无聊诶。']
+        // 根据角色ID使用对应的默认数据
+        if (characterId === 'koru') {
+          characterData.value = {
+            name: 'Aoba',
+            avatar: '/img/Aoba(normal).png',
+            emotions: {
+              normal: '/img/Aoba(normal).png',
+              happy: '/img/Aoba(Happy).png',
+              angry: '/img/Aoba(Angry).png',
+              sad: '/img/Aoba(Sad).png',
+              surprise: '/img/Aoba(Surprise).png'
+            },
+            statusTexts: {
+              normal: ['温柔地陪伴着你...', '静静地倾听你的心声...'],
+              happy: ['开心地为你欢呼...', '温柔地为你开心...'],
+              angry: ['为你感到不平...', '温柔地安慰你...'],
+              sad: ['温柔地安慰你...', '轻轻为你擦泪...'],
+              surprise: ['惊讶地为你开心...', '温柔地为你惊讶...']
+            },
+            clickResponses: ['我在这里陪着你呢~', '有什么想和我说的吗？', '温柔地摸摸你的头...']
+          }
+        } else {
+          // 默认 Kuro 数据
+          characterData.value = {
+            name: 'Kuro',
+            avatar: '/img/Kuro.PNG',
+            emotions: {
+              normal: '/img/Kuro.PNG',
+              happy: '/img/Kuro(Happy).PNG',
+              angry: '/img/Kuro(Angry).PNG',
+              sad: '/img/Kuro(Sad).PNG',
+              surprise: '/img/Kuro(Surprise).PNG'
+            },
+            statusTexts: {
+              normal: ['正在思考人生的意义...', '观察着愚蠢的人类...'],
+              happy: ['开心地摇着尾巴...', '心情不错的样子...'],
+              angry: ['炸毛中，别惹我...', '耳朵向后贴着...'],
+              sad: ['心情有点低落...', '耳朵垂了下来...'],
+              surprise: ['惊讶地睁大眼睛...', '耳朵竖得很直...']
+            },
+            clickResponses: ['别戳我...', '哼，幼稚。', '有事说事。', '你很无聊诶。']
+          }
         }
         emotionImages.value = characterData.value.emotions
         updateEmotionImage()
@@ -254,6 +304,7 @@ export default {
       
       try {
         // 调用后端 API
+        console.log('发送聊天请求，角色ID:', currentCharacter.value)
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: 'POST',
           headers: {
@@ -594,8 +645,14 @@ export default {
           console.log('聊天记录已加载')
         }
         
-        if (savedCharacter) {
-          currentCharacter.value = savedCharacter
+        // 只有当保存的角色与当前选择的角色匹配时，才使用保存的角色
+        // 这样可以防止角色切换时的混乱
+        if (savedCharacter && savedCharacter === currentCharacter.value) {
+          // 角色匹配，可以安全使用保存的角色
+          console.log('使用保存的角色:', savedCharacter)
+        } else {
+          // 角色不匹配，保持当前选择的角色
+          console.log('角色不匹配，使用当前选择的角色:', currentCharacter.value)
         }
       } catch (error) {
         console.error('加载聊天记录失败:', error)
@@ -629,6 +686,24 @@ export default {
       }
     }
     
+    // 时间相关的响应式变量
+    const currentTime = ref(timeSystem.formatTime())
+    const currentDate = ref(timeSystem.formatDate())
+    const timePeriod = ref(timeSystem.getTimePeriod())
+    const timePeriodName = ref(timeSystem.getTimePeriodName())
+
+    // 时间问候功能
+    const getTimeGreeting = () => {
+      // 检查特殊时间
+      const specialGreeting = timeSystem.getSpecialTimeGreeting(currentCharacter.value)
+      if (specialGreeting) {
+        return specialGreeting
+      }
+      
+      // 返回普通时间问候
+      return timeSystem.getTimeGreeting(currentCharacter.value)
+    }
+    
     // 初始化
     onMounted(async () => {
       await loadCharacters()
@@ -650,15 +725,39 @@ export default {
       
       // 检查浮动头像可见性
       checkFloatingAvatarVisibility()
+
+      // 启动时间更新
+      timeSystem.startTimeUpdate((timeInfo) => {
+        currentTime.value = timeInfo.time
+        currentDate.value = timeInfo.date
+        timePeriod.value = timeInfo.period
+        timePeriodName.value = timeInfo.periodName
+        
+        // 如果检测到特殊时间，可以显示特殊消息
+        if (timeInfo.specialTime && messages.value.length > 0) {
+          const specialGreeting = timeSystem.getSpecialTimeGreeting(currentCharacter.value)
+          if (specialGreeting) {
+            messages.value.push({
+              id: Date.now(),
+              content: specialGreeting,
+              sender: 'cat',
+              time: timeInfo.time
+            })
+            scrollToBottom()
+          }
+        }
+      })
     })
     
     onUnmounted(() => {
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('resize', checkFloatingAvatarVisibility)
+      timeSystem.stopTimeUpdate() // 停止时间更新
     })
     
     return {
       selectedCharacter,
+      currentPage,
       messages,
       inputMessage,
       isLoading,
@@ -688,7 +787,12 @@ export default {
       switchCharacter,
       clearMessages,
       showFloatingChatBubble,
-      floatingChatMessage
+      floatingChatMessage,
+      currentTime,
+      currentDate,
+      timePeriod,
+      timePeriodName,
+      getTimeGreeting
     }
   }
 }
@@ -698,12 +802,18 @@ export default {
   <div class="app">
     <!-- 角色选择页面（首页） -->
     <CharacterSelect 
-      v-if="!selectedCharacter"
+      v-if="currentPage === 'select'"
       @select-character="startChat"
     />
     
-    <!-- 聊天页面 -->
-    <div v-else class="chat-app">
+    <!-- Aoba 独立聊天页面 -->
+    <AobaChat 
+      v-else-if="currentPage === 'aoba'"
+      @back="backToCharacterSelect"
+    />
+    
+    <!-- Kuro 聊天页面 -->
+    <div v-else-if="currentPage === 'kuro'" class="chat-app">
       <!-- 动态背景 -->
       <div class="bg-animation">
         <div class="bg-particles"></div>
@@ -798,6 +908,14 @@ export default {
             </div>
             <div class="cat-info">
               <h2 class="cat-name">{{ characterData?.name || 'Kuro' }}</h2>
+              
+              <!-- 添加时间显示 -->
+              <div class="time-display">
+                <div class="current-time">{{ currentTime }}</div>
+                <div class="time-period">{{ timePeriodName }}</div>
+                <div class="current-date">{{ currentDate }}</div>
+              </div>
+              
               <div class="cat-status-container">
                 <div class="status-indicator"></div>
                 <p class="cat-status">{{ catStatus }}</p>
@@ -861,7 +979,7 @@ export default {
                 <span></span>
                 <span></span>
               </div>
-              <p class="loading-text">Kuro正在思考中...</p>
+              <p class="loading-text">Kuro...</p>
             </div>
           </div>
           
@@ -949,7 +1067,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
 }
@@ -1842,6 +1960,41 @@ body {
   40% {
     transform: scale(1);
   }
+}
+
+/* 时间显示样式 */
+.time-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.current-time {
+  font-size: 18px;
+  font-weight: 600;
+  color: #667eea;
+  text-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+}
+
+.time-period {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(102, 126, 234, 0.2);
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.current-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
 }
 
 /* 响应式设计 */
